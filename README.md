@@ -75,7 +75,7 @@ between GNSS updates. Consequently, each new GNSS position is about **0.72 m** b
 
 
 ```python
-gmkdir ros2_ws_localization
+mkdir ros2_ws_localization
 cd ros2_ws_localization
 ```
 # Clone the repo
