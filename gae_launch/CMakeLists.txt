@@ -20,5 +20,6 @@ install(DIRECTORY
   urdf
   rviz
   scripts
+  maps
   DESTINATION share/${PROJECT_NAME})
 ament_package()

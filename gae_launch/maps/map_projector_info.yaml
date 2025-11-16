@@ -1,0 +1,4 @@
+# map_projector_info.yaml
+projector_type: MGRS
+vertical_datum: WGS84
+mgrs_grid: 35TPF

@@ -1,5 +1,5 @@
-pointcloud_map_path: "/home/emre/Desktop/gnss_loc/src/maps/map.pcd"
-pointcloud_map_metadata_path: /home/emre/Desktop/gnss_loc/src/maps/map_metadata.yaml"
+pointcloud_map_path: "install/gae_launch/share/gae_launch/maps/map.pcd"
+pointcloud_map_metadata_path: install/gae_launch/share/gae_launch/maps/map_metadata.yaml"
 
-map_projector_info_path: "/home/emre/Desktop/gnss_loc/src/maps/map_projector_info.yaml"
-lanelet2_map_path: "/home/emre/Desktop/gnss_loc/src/maps/lane.osm"
+map_projector_info_path: "install/gae_launch/share/gae_launch/maps/map_projector_info.yaml"
+lanelet2_map_path: "install/gae_launch/share/gae_launch/maps/lane.osm"

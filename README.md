@@ -3,6 +3,8 @@
 ## Overview
 Integrate IMU, GNSS, and vehicle speed into an Extended Kalman Filter (EKF) to estimate the vehicle's global pose (position and orientation) with covariance. 
 
+
+
 ## Sensor Topics
 - **IMU Data** (`sensor_msgs/Imu`)
 - **GNSS Position Data (1)** (`sensor_msgs/NavSatFix`)
@@ -68,7 +70,20 @@ At a constant speed of **3.6 m/s** (≈ 12.96 km/h), the vehicle covers:
 
 between GNSS updates. Consequently, each new GNSS position is about **0.72 m** behind the vehicle’s actual location, whereas the EKF estimate remains current.
 
-## Build
+## Clone the Repository
+# Create a workspace
+
+
+```python
+gmkdir ros2_ws_localization
+cd ros2_ws_localization
+```
+# Clone the repo
+```python
+git clone git@github.com:memre12/gnss_localization.git
+```
+
+# Build
 Remember to source Autoware Package and:
 ```python
 colcon build --symlink-install
