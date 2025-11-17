@@ -81,11 +81,17 @@ cd ros2_ws_localization
 # Clone the repo
 ```python
 git clone git@github.com:memre12/gnss_localization.git
+cd multi_sensor_fusion_localization/
+```
+# Install dependencies
+```python
+rosdep install --from-paths src --ignore-src -r -y
 ```
 
+
 # Build
-Remember to source Autoware Package and:
 ```python
+cd ..
 colcon build --symlink-install
 ```
 
