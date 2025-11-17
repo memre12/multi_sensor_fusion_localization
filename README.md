@@ -10,9 +10,6 @@ Integrate IMU, GNSS, and vehicle speed into an Extended Kalman Filter (EKF) to e
 - **GNSS Position Data (1)** (`sensor_msgs/NavSatFix`)
 - **GNSS Position Data (2)** (`sensor_msgs/NavSatFix`)
 - **Twist Data** (`geometry_msgs/TwistWithCovarianceStamped`)
-  - Source: IMU or motor driver (Motor Driver's consistency should be taken into account. IMU is good option.)
-  - Note: No covariance—attach a static covariance matrix via Python before EKF.
-
 ---
 
 ## GNSS Poser
