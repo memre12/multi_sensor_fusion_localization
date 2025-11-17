@@ -283,8 +283,6 @@ void GyroOdometerNode::publish_data(
   geometry_msgs::msg::TwistWithCovarianceStamped twist_with_covariance = twist_with_cov_raw;
   geometry_msgs::msg::TwistStamped twist = twist_raw;
 
-  // clear imu yaw bias if vehicle is stopped
-  // GAE UPDATE: change bias to 0.1 from 0.01 bcs sbg sucks
   if (
     std::fabs(twist_with_cov_raw.twist.twist.angular.z) < 0.1 &&
     std::fabs(twist_with_cov_raw.twist.twist.linear.x) < 0.1) {

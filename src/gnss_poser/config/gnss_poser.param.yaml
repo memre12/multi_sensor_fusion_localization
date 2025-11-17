@@ -6,3 +6,4 @@
     first_navsat_msg: "/sbg_device2/imu/nav_sat_fix_corrected"
     second_navsat_msg: "/imu/nav_sat_fix_corrected"
     publish_topic: "/gnss_pose_cov"
+    single_antenna_mode: true

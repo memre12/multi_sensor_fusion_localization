@@ -9,28 +9,27 @@ Integrate IMU, GNSS, and vehicle speed into an Extended Kalman Filter (EKF) to e
 - **IMU Data** (`sensor_msgs/Imu`)
 - **GNSS Position Data (1)** (`sensor_msgs/NavSatFix`)
 - **GNSS Position Data (2)** (`sensor_msgs/NavSatFix`)
-- **Twist Data** (`geometry_msgs/Twist`)
+- **Twist Data** (`geometry_msgs/TwistWithCovarianceStamped`)
   - Source: IMU or motor driver (Motor Driver's consistency should be taken into account. IMU is good option.)
   - Note: No covariance—attach a static covariance matrix via Python before EKF.
 
 ---
 
 ## GNSS Poser
-Convert dual GNSS readings and MGRS grid zone (from Lanelet2) into a 2D pose with covariance.
+Convert dual or single GNSS readings and MGRS grid zone (from Lanelet2) into a pose with covariance.
 
 **Inputs**
 - `/gnss1/fix` (`NavSatFix`)
-- `/gnss2/fix` (`NavSatFix`)
-- `/lanelet/mgrs_zone` (`MapProjectorInfo`) # Just launch map.launch.py
+- `/gnss2/fix` (`NavSatFix`) # (If you do not have second antenna, use single antenna option.)
+- `/lanelet/mgrs_zone` (`MapProjectorInfo`) # From map.launch.py
 
 **Output**
 - `/pose_with_covariance` (`PoseWithCovarianceStamped`)
 
-
 ---
 
 ## gyro_odometer
-Estimate vehicle twist by fusing IMU angular rates with measured speed.
+Estimate vehicle twist by fusing IMU angular velocity with measured speed from wheels.
 
 **Inputs**
 - `/vehicle/twist_with_covariance` (`TwistWithCovarianceStamped`)
@@ -50,7 +49,7 @@ Fuse pose and twist into a global pose estimate using EKF.
 - `/twist_with_covariance` (`TwistWithCovarianceStamped`)
 
 **Output**
-- `/ekf/pose` (`PoseWithCovarianceStamped`)
+- `/ekf_pose_with_covariance` (`PoseWithCovarianceStamped`)
 
 
 ## Visuals

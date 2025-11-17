@@ -2,10 +2,7 @@
 
 #include <geography_utils/height.hpp>
 #include <geography_utils/projection.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2/utils.h>
-
-// #include <tf2_geometry_msgs/tf2_geometry_msgs.h> // for ros2 foxy compatibility
 
 #include <algorithm>
 #include <memory>
@@ -25,7 +22,8 @@ namespace gnss_poser
         first_navsat_msg(declare_parameter<std::string>("first_navsat_msg", "nav_sat_fix")),
         second_navsat_msg(declare_parameter<std::string>("second_navsat_msg", "nav_sat_fix2")),
         publish_topic_(declare_parameter<std::string>("publish_topic", "gnss_pose_cov")),
-        publish_topic_pose_stamped_(declare_parameter<std::string>("publish_topic_pose_stamped", "gnss_pose_stamped"))
+        publish_topic_pose_stamped_(declare_parameter<std::string>("publish_topic_pose_stamped", "gnss_pose_stamped")),
+        single_antenna_mode(declare_parameter<bool>("single_antenna_mode", true))
   {
     const auto adaptor = component_interface_utils::NodeAdaptor(this);
     adaptor.init_sub(
@@ -73,136 +71,260 @@ namespace gnss_poser
       return;
     }
 
-    geographic_msgs::msg::GeoPoint gps_point_1, gps_point_2;
-    gps_point_1.latitude = nav_sat_fix_msg_ptr_1->latitude;
-    gps_point_1.longitude = nav_sat_fix_msg_ptr_1->longitude;
-    gps_point_1.altitude = nav_sat_fix_msg_ptr_1->altitude;
-
-    gps_point_2.latitude = nav_sat_fix_msg_ptr_2->latitude;
-    gps_point_2.longitude = nav_sat_fix_msg_ptr_2->longitude;
-    gps_point_2.altitude = nav_sat_fix_msg_ptr_2->altitude;
-
-    geometry_msgs::msg::Point pos1 = geography_utils::project_forward(gps_point_1, projector_info_);
-    geometry_msgs::msg::Point pos2 = geography_utils::project_forward(gps_point_2, projector_info_);
-
-    pos1.z = geography_utils::convert_height(
-        pos1.z, gps_point_1.latitude, gps_point_1.longitude, MapProjectorInfo::Message::WGS84,
-        projector_info_.vertical_datum);
-    if (std::isnan(pos1.z))
+    if (single_antenna_mode)
     {
-      RCLCPP_WARN_THROTTLE(
-          this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
-          "Height conversion failed for first GNSS point.");
-      pos1.z = 0.0; // Default to zero if conversion fails
+
+      geographic_msgs::msg::GeoPoint gps_point_1;
+      gps_point_1.latitude = nav_sat_fix_msg_ptr_1->latitude;
+      gps_point_1.longitude = nav_sat_fix_msg_ptr_1->longitude;
+      gps_point_1.altitude = nav_sat_fix_msg_ptr_1->altitude;
+
+      geometry_msgs::msg::Point pos1 =
+          geography_utils::project_forward(gps_point_1, projector_info_);
+
+      pos1.z = geography_utils::convert_height(
+          pos1.z, gps_point_1.latitude, gps_point_1.longitude,
+          MapProjectorInfo::Message::WGS84,
+          projector_info_.vertical_datum);
+
+      if (std::isnan(pos1.z))
+      {
+        RCLCPP_WARN_THROTTLE(
+            this->get_logger(), *this->get_clock(),
+            std::chrono::milliseconds(1000).count(),
+            "Height conversion failed; fallback to 0");
+        pos1.z = 0.0;
+      }
+
+      tf2::Quaternion q;
+      double yaw_cov;       // yaw variance
+
+      if (!is_started)
+      {
+        // First fix: no yaw information yet
+        q.setRPY(0.0, 0.0, 0.0);
+        yaw_cov = 100.0; // extremely uncertain yaw
+        prev_raw_pos_ = pos1; // initialize raw previous pos
+      }
+      else
+      {
+        // Compute GNSS displacement
+        double dx = pos1.x - prev_raw_pos_.x;
+        double dy = pos1.y - prev_raw_pos_.y;
+        double dist = std::sqrt(dx * dx + dy * dy);
+
+        if (dist < 0.20)
+        {
+          // Movement too small → yaw unreliable
+          double prev_yaw =
+              tf2::getYaw(prev_pose_cov_msg.pose.pose.orientation);
+
+          q.setRPY(0.0, 0.0, prev_yaw);
+          yaw_cov = 10.0;      // very uncertain
+        }
+        else
+        {
+          // Normal GNSS-based yaw
+          double yaw = std::atan2(dy, dx);
+          q.setRPY(0.0, 0.0, yaw);
+          yaw_cov = 0.1; // confident yaw
+        }
+
+        prev_raw_pos_ = pos1; // store raw GNSS for next cycle
+      }
+
+      q.normalize();
+      geometry_msgs::msg::Quaternion orientation = tf2::toMsg(q);
+
+      geometry_msgs::msg::PoseWithCovarianceStamped pose_cov_msg;
+      pose_cov_msg.header.stamp = nav_sat_fix_msg_ptr_1->header.stamp;
+      pose_cov_msg.header.frame_id = map_frame_;
+
+      pose_cov_msg.pose.pose.position = pos1;
+      pose_cov_msg.pose.pose.orientation = orientation;
+
+      double var_x = nav_sat_fix_msg_ptr_1->position_covariance[0];
+      double var_y = nav_sat_fix_msg_ptr_1->position_covariance[4];
+      double var_z = nav_sat_fix_msg_ptr_1->position_covariance[8];
+
+      double min_cov = 1e-6;
+
+      var_x = std::max(var_x, min_cov);
+      var_y = std::max(var_y, min_cov);
+      var_z = std::max(var_z, min_cov);
+      yaw_cov = std::max(yaw_cov, min_cov);
+
+      pose_cov_msg.pose.covariance = {
+          var_x, 0.0, 0.0, 0.0, 0.0, 0.0,
+          0.0, var_y, 0.0, 0.0, 0.0, 0.0,
+          0.0, 0.0, var_z, 0.0, 0.0, 0.0,
+          0.0, 0.0, 0.0, 0.1, 0.0, 0.0, // roll unknown
+          0.0, 0.0, 0.0, 0.0, 0.1, 0.0, // pitch unknown
+          0.0, 0.0, 0.0, 0.0, 0.0, yaw_cov};
+
+      double offset_x = 0.0, offset_y = 0.0, offset_z = 0.0;
+      try
+      {
+        geometry_msgs::msg::TransformStamped tf =
+            tf2_buffer_.lookupTransform(
+                base_frame_, gnss_base_frame_, tf2::TimePointZero);
+
+        offset_x = tf.transform.translation.x;
+        offset_y = tf.transform.translation.y;
+        offset_z = tf.transform.translation.z;
+      }
+      catch (const tf2::TransformException &ex)
+      {
+        RCLCPP_WARN_THROTTLE(
+            this->get_logger(), *this->get_clock(),
+            std::chrono::milliseconds(1000).count(),
+            "TF lookup failed %s -> %s : %s",
+            base_frame_.c_str(), gnss_base_frame_.c_str(), ex.what());
+      }
+
+      double yaw = tf2::getYaw(q);
+
+      pose_cov_msg.pose.pose.position.x -=
+          offset_x * std::cos(yaw) - offset_y * std::sin(yaw);
+
+      pose_cov_msg.pose.pose.position.y -=
+          offset_x * std::sin(yaw) + offset_y * std::cos(yaw);
+
+      pose_cov_msg.pose.pose.position.z -= offset_z;
+
+      pose_cov_pub_->publish(pose_cov_msg);
+
+      prev_pose_cov_msg = pose_cov_msg;
+      is_started = true;
     }
-
-    pos2.z = geography_utils::convert_height(
-        pos2.z, gps_point_2.latitude, gps_point_2.longitude, MapProjectorInfo::Message::WGS84,
-        projector_info_.vertical_datum);
-
-    if (std::isnan(pos2.z))
+    else if (!single_antenna_mode)
     {
-      RCLCPP_WARN_THROTTLE(
-          this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
-          "Height conversion failed for second GNSS point.");
-      pos2.z = 0.0; // Default to zero if conversion fails
+      geographic_msgs::msg::GeoPoint gps_point_1, gps_point_2;
+      gps_point_1.latitude = nav_sat_fix_msg_ptr_1->latitude;
+      gps_point_1.longitude = nav_sat_fix_msg_ptr_1->longitude;
+      gps_point_1.altitude = nav_sat_fix_msg_ptr_1->altitude;
+
+      gps_point_2.latitude = nav_sat_fix_msg_ptr_2->latitude;
+      gps_point_2.longitude = nav_sat_fix_msg_ptr_2->longitude;
+      gps_point_2.altitude = nav_sat_fix_msg_ptr_2->altitude;
+
+      geometry_msgs::msg::Point pos1 = geography_utils::project_forward(gps_point_1, projector_info_);
+      geometry_msgs::msg::Point pos2 = geography_utils::project_forward(gps_point_2, projector_info_);
+
+      pos1.z = geography_utils::convert_height(
+          pos1.z, gps_point_1.latitude, gps_point_1.longitude, MapProjectorInfo::Message::WGS84,
+          projector_info_.vertical_datum);
+      if (std::isnan(pos1.z))
+      {
+        RCLCPP_WARN_THROTTLE(
+            this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
+            "Height conversion failed for first GNSS point.");
+        pos1.z = 0.0; // Default to zero if conversion fails
+      }
+
+      pos2.z = geography_utils::convert_height(
+          pos2.z, gps_point_2.latitude, gps_point_2.longitude, MapProjectorInfo::Message::WGS84,
+          projector_info_.vertical_datum);
+
+      if (std::isnan(pos2.z))
+      {
+        RCLCPP_WARN_THROTTLE(
+            this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
+            "Height conversion failed for second GNSS point.");
+        pos2.z = 0.0; // Default to zero if conversion fails
+      }
+
+      tf2::Quaternion q;
+      q.setRPY(0.0, 0.0, std::atan2(pos1.y - pos2.y, pos1.x - pos2.x));
+      q.normalize();
+      geometry_msgs::msg::Quaternion orientation = tf2::toMsg(q);
+
+      geometry_msgs::msg::PoseWithCovarianceStamped pose_cov_msg;
+      pose_cov_msg.header.stamp = nav_sat_fix_msg_ptr_1->header.stamp;
+      pose_cov_msg.header.frame_id = map_frame_;
+
+      pose_cov_msg.pose.pose.position = pos2;
+      pose_cov_msg.pose.pose.orientation = orientation;
+      double var_x1 = nav_sat_fix_msg_ptr_1->position_covariance[0]; // x variance
+      double var_y1 = nav_sat_fix_msg_ptr_1->position_covariance[4]; // y variance
+      double var_z1 = nav_sat_fix_msg_ptr_1->position_covariance[8]; // z variance
+      double var_x2 = nav_sat_fix_msg_ptr_2->position_covariance[0]; // x variance
+      double var_y2 = nav_sat_fix_msg_ptr_2->position_covariance[4]; // y variance
+      double var_z2 = nav_sat_fix_msg_ptr_2->position_covariance[8]; // z variance
+
+      double dx = pos2.x - pos1.x;
+      double dy = pos2.y - pos1.y;
+      double magnitude = dx * dx + dy * dy;
+
+      if (magnitude < 1e-2)
+      {
+        RCLCPP_WARN_THROTTLE(
+            this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
+            "Positions are too close, covariance may not be reliable.");
+        magnitude = 1.0; // Avoid division by zero
+      }
+      // Error propagation for yaw covariance for: std::atan2(dy, dx)
+      double yaw_cov = (dy * dy * (var_x1 + var_x2) + dx * dx * (var_y1 + var_y2)) / (magnitude * magnitude);
+      // Average x ,y, z variance: A+B -> varA + varB
+      double var_x = (var_x1 + var_x2) / 2.0;
+      double var_y = (var_y1 + var_y2) / 2.0;
+      double var_z = (var_z1 + var_z2) / 2.0;
+
+      // minimum yaw variance threshold
+      if (yaw_cov < 1e-6)
+      {
+        yaw_cov = 1e-6;
+      }
+
+      // Fill full 6x6 covariance matrix
+      pose_cov_msg.pose.covariance = {
+          var_x, 0.0, 0.0, 0.0, 0.0, 0.0,  // position x
+          0.0, var_y, 0.0, 0.0, 0.0, 0.0,  // position y
+          0.0, 0.0, var_z, 0.0, 0.0, 0.0,  // position z
+          0.0, 0.0, 0.0, 0.1, 0.0, 0.0,    // roll not calculated
+          0.0, 0.0, 0.0, 0.0, 0.1, 0.0,    // pitch not calculated
+          0.0, 0.0, 0.0, 0.0, 0.0, yaw_cov // yaw
+      };
+      double offset_x = 0.0;
+      double offset_y = 0.0;
+      double offset_z = 0.0;
+
+      try
+      {
+        geometry_msgs::msg::TransformStamped tf =
+            tf2_buffer_.lookupTransform(base_frame_, gnss_base_frame_, tf2::TimePointZero);
+
+        offset_x = tf.transform.translation.x;
+        offset_y = tf.transform.translation.y;
+        offset_z = tf.transform.translation.z;
+      }
+      catch (const tf2::TransformException &ex)
+      {
+        RCLCPP_WARN_THROTTLE(
+            this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
+            "Could not get transform %s -> %s: %s", base_frame_.c_str(), gnss_base_frame_.c_str(), ex.what());
+      }
+
+      double yaw = tf2::getYaw(q);
+      // Apply offset
+
+      pose_cov_msg.pose.pose.position.x -=
+          offset_x * std::cos(yaw) - offset_y * std::sin(yaw);
+      pose_cov_msg.pose.pose.position.y -=
+          offset_x * std::sin(yaw) + offset_y * std::cos(yaw);
+      pose_cov_msg.pose.pose.position.z -= offset_z;
+
+      pose_cov_pub_->publish(pose_cov_msg);
+      geometry_msgs::msg::PoseStamped pose_stamped;
+      pose_stamped.header.stamp = pose_cov_msg.header.stamp;
+      pose_stamped.header.frame_id = pose_cov_msg.header.frame_id;
+      pose_stamped.pose = pose_cov_msg.pose.pose;
+      pose_pub_->publish(pose_stamped);
     }
-
-    tf2::Quaternion q;
-    q.setRPY(0.0, 0.0, std::atan2(pos1.y - pos2.y, pos1.x - pos2.x));
-    q.normalize();
-    geometry_msgs::msg::Quaternion orientation = tf2::toMsg(q);
-
-    geometry_msgs::msg::PoseWithCovarianceStamped pose_cov_msg;
-    pose_cov_msg.header.stamp = nav_sat_fix_msg_ptr_1->header.stamp;
-    pose_cov_msg.header.frame_id = map_frame_;
-
-    pose_cov_msg.pose.pose.position = pos2;
-    pose_cov_msg.pose.pose.orientation = orientation;
-    double var_x1 = nav_sat_fix_msg_ptr_1->position_covariance[0]; // x variance
-    double var_y1 = nav_sat_fix_msg_ptr_1->position_covariance[4]; // y variance
-    double var_z1 = nav_sat_fix_msg_ptr_1->position_covariance[8]; // z variance
-    double var_x2 = nav_sat_fix_msg_ptr_2->position_covariance[0]; // x variance
-    double var_y2 = nav_sat_fix_msg_ptr_2->position_covariance[4]; // y variance
-    double var_z2 = nav_sat_fix_msg_ptr_2->position_covariance[8]; // z variance
-
-    double dx = pos2.x - pos1.x;
-    double dy = pos2.y - pos1.y;
-    double magnitude = dx * dx + dy * dy;
-
-    if (magnitude < 1e-2)
+    else
     {
-      RCLCPP_WARN_THROTTLE(
-          this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
-          "Positions are too close, covariance may not be reliable.");
-      magnitude = 1.0; // Avoid division by zero
+      RCLCPP_ERROR(this->get_logger(), "Invalid GNSS mode configuration.");
     }
-    // Error propagation for yaw covariance for: std::atan2(dy, dx)
-    double yaw_cov = (dy * dy * (var_x1 + var_x2) + dx * dx * (var_y1 + var_y2)) / (magnitude * magnitude);
-    // Average x ,y, z variance: A+B -> varA + varB
-    double var_x = (var_x1 + var_x2) / 2.0;
-    double var_y = (var_y1 + var_y2) / 2.0;
-    double var_z = (var_z1 + var_z2) / 2.0;
-
-    // minimum yaw variance threshold
-    if (yaw_cov < 1e-6)
-    {
-      yaw_cov = 1e-6;
-    }
-
-    // Fill full 6x6 covariance matrix
-    pose_cov_msg.pose.covariance = {
-        var_x, 0.0, 0.0, 0.0, 0.0, 0.0,  // position x
-        0.0, var_y, 0.0, 0.0, 0.0, 0.0,  // position y
-        0.0, 0.0, var_z, 0.0, 0.0, 0.0,  // position z
-        0.0, 0.0, 0.0, 0.1, 0.0, 0.0,    // roll not calculated
-        0.0, 0.0, 0.0, 0.0, 0.1, 0.0,    // pitch not calculated
-        0.0, 0.0, 0.0, 0.0, 0.0, yaw_cov // yaw
-    };
-
-    double offset_x;
-    double offset_y;
-    double offset_z;
-
-    try
-    {
-      geometry_msgs::msg::TransformStamped tf =
-          tf2_buffer_.lookupTransform(base_frame_, gnss_base_frame_, tf2::TimePointZero);
-
-      offset_x = tf.transform.translation.x;
-      offset_y = tf.transform.translation.y;
-      offset_z = tf.transform.translation.z;
-    }
-    catch (const tf2::TransformException &ex)
-    {
-      RCLCPP_WARN_THROTTLE(
-          this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
-          "Could not get transform %s -> %s: %s", base_frame_.c_str(), gnss_base_frame_.c_str(), ex.what());
-    }
-
-    double yaw = tf2::getYaw(q);
-    // Apply offset
-
-    pose_cov_msg.pose.pose.position.x -=
-        offset_x * std::cos(yaw) - offset_y * std::sin(yaw);
-    pose_cov_msg.pose.pose.position.y -=
-        offset_x * std::sin(yaw) + offset_y * std::cos(yaw);
-    pose_cov_msg.pose.pose.position.z -= offset_z;
-
-    pose_cov_pub_->publish(pose_cov_msg);
-    geometry_msgs::msg::PoseStamped pose_stamped;
-    pose_stamped.header.stamp = pose_cov_msg.header.stamp;
-    pose_stamped.header.frame_id = pose_cov_msg.header.frame_id;
-    pose_stamped.pose = pose_cov_msg.pose.pose;
-    pose_pub_->publish(pose_stamped);
-    // publishTF(
-    //   map_frame_, gnss_base_frame_, pose_stamped);
-    // RCLCPP_INFO_THROTTLE(
-    //     this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(),
-    //     "Position published: x=%.2f, y=%.2f, z=%.2f",
-    //     pose_cov_msg.pose.pose.position.x,
-    //     pose_cov_msg.pose.pose.position.y,
-    //     pose_cov_msg.pose.pose.position.z);
   }
 
   void GNSSPoser::callbackMapProjectorInfo(const MapProjectorInfo::Message::ConstSharedPtr msg)
