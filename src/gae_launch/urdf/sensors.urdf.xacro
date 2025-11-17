@@ -10,8 +10,8 @@
   <joint name="base_to_gnss_front" type="fixed">
     <parent link="base_link"/>
     <child link="gnss_link2"/>
-    <!-- x=+1m (ön), y=+0.65m (sol), z=1.0m yükseklik -->
-    <origin xyz="2.0 0.65 1.0" rpy="0 0 0"/>
+    <!-- x=+1m (ön), y=-0.65m (sol), z=1.0m yükseklik -->
+    <origin xyz="1.0 -0.65 1.0" rpy="0 0 0"/>
   </joint>
 
   <!-- Rear-Left GNSS -->
@@ -20,10 +20,9 @@
     <parent link="base_link"/>
     <child link="gnss_link"/>
     <!-- x=–1m (arka), y=+0.65m (sol), z=1.0m yükseklik -->
-    <origin xyz="0.0 0.65 1.0" rpy="0 0 0"/>
+    <origin xyz="-1.0 -0.65 1.0" rpy="0 0 0"/>
   </joint>
 
-  <!-- IMU Sensörleri -->
   <!-- Front-Right IMU -->
   <link name="imu_link2"/>
   <joint name="base_to_imu_right" type="fixed">

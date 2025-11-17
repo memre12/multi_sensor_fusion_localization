@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     base_frame: base_link
-    gnss_base_frame: base_link
+    gnss_base_frame: gnss_link
     map_frame: map
     first_navsat_msg: "/sbg_device2/imu/nav_sat_fix_corrected"
     second_navsat_msg: "/imu/nav_sat_fix_corrected"
