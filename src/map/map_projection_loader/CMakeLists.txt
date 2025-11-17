@@ -1,0 +1,35 @@
+cmake_minimum_required(VERSION 3.14)
+project(map_projection_loader)
+
+find_package(autoware_cmake REQUIRED)
+autoware_package()
+
+ament_auto_find_build_dependencies()
+
+ament_auto_add_library(${PROJECT_NAME} SHARED
+  src/map_projection_loader.cpp
+  src/load_info_from_lanelet2_map.cpp
+)
+
+rclcpp_components_register_node(${PROJECT_NAME}
+  PLUGIN "MapProjectionLoader"
+  EXECUTABLE ${PROJECT_NAME}_node
+  EXECUTOR SingleThreadedExecutor
+)
+
+target_link_libraries(${PROJECT_NAME} yaml-cpp)
+
+function(add_testcase filepath)
+  get_filename_component(filename ${filepath} NAME)
+  string(REGEX REPLACE ".cpp" "" test_name ${filename})
+  ament_add_gmock(${test_name} ${filepath})
+  target_link_libraries("${test_name}" ${PROJECT_NAME})
+  ament_target_dependencies(${test_name} ${${PROJECT_NAME}_FOUND_BUILD_DEPENDS})
+endfunction()
+
+
+ament_auto_package(
+  INSTALL_TO_SHARE
+  launch
+  config
+)
