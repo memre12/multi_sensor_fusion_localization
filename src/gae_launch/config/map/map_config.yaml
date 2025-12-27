@@ -1,5 +1,5 @@
-pointcloud_map_path: "install/gae_launch/share/gae_launch/maps/map.pcd"
-pointcloud_map_metadata_path: install/gae_launch/share/gae_launch/maps/map_metadata.yaml"
+pointcloud_map_path: "install/gae_launch/share/gae_launch/maps/shell_sim_map23/map.pcd"
+pointcloud_map_metadata_path: "install/gae_launch/share/gae_launch/maps/shell_sim_map23/map_metadata.yaml"
 
-map_projector_info_path: "install/gae_launch/share/gae_launch/maps/map_projector_info.yaml"
-lanelet2_map_path: "install/gae_launch/share/gae_launch/maps/lane.osm"
+map_projector_info_path: "install/gae_launch/share/gae_launch/maps/shell_sim_map23/map_projector_info.yaml"
+lanelet2_map_path: "install/gae_launch/share/gae_launch/maps/shell_sim_map23/lane.osm"

@@ -20,7 +20,7 @@
                                        # ↑ larger → the EKF treats measurements as older; ↓ smaller → less time compensation  
       pose_measure_uncertainty_time: 0.03 # sec, inflate pose covariance for timestamp jitter  
                                        # ↑ larger → filter trusts pose less; ↓ smaller → trusts pose more (less smoothing)  
-      pose_smoothing_steps: 3             # number of past poses to average before EKF update  
+      pose_smoothing_steps: 5             # number of past poses to average before EKF update  
                                        # ↑ more → smoother but more lag; ↓ fewer → more responsive but jittery  
       pose_gate_dist: 250.0               # M-distance gate threshold (~ significance 1e-10)  
                                        # ↑ larger → fewer pose outliers rejected; ↓ smaller → stricter gating, potential false rejects  

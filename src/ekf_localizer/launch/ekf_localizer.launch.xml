@@ -19,6 +19,7 @@
 
   <node pkg="ekf_localizer" exec="ekf_localizer_node" output="both">
     <remap from="in_pose_with_covariance" to="$(var input_pose_with_cov_name)"/>
+    <param name="use_sim_time" value="true"/>
 
     <remap from="in_twist_with_covariance" to="$(var input_twist_with_cov_name)"/>
 

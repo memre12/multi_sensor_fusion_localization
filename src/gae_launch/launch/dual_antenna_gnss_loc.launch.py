@@ -75,7 +75,6 @@ def generate_launch_description():
         gyro_odometer_launch,
         gnss_poser_launch,
         map_launch,
-        rviz_node,
-        twist_converter_raw,
-        tf_node
+        rviz_node
+        # tf_node
     ])

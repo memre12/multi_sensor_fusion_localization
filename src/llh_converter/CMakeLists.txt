@@ -69,11 +69,6 @@ install(
   DESTINATION include
 )
 
-install(
-  DIRECTORY data
-  DESTINATION share/${PROJECT_NAME}
-)
-
 install(TARGETS
   llh_converter
   ARCHIVE DESTINATION lib
