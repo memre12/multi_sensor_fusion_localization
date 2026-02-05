@@ -13,19 +13,19 @@
       pose_additional_delay: 0.0
       pose_measure_uncertainty_time: 0.01
       pose_smoothing_steps: 5
-      pose_gate_dist: 49.5 # corresponds to significance level = 10^-10
+      pose_gate_dist: 10.0 # Tightened for better outlier rejection
 
     twist_measurement:
       # for twist measurement
       twist_additional_delay: 0.0
       twist_smoothing_steps: 2
-      twist_gate_dist: 46.1 # corresponds to significance level = 10^-10
+      twist_gate_dist: 10.0 # Tightened for better outlier rejection
 
     process_noise:
       # for process model
       proc_stddev_yaw_c: 0.005
-      proc_stddev_vx_c: 4.0
-      proc_stddev_wz_c: 2.0
+      proc_stddev_vx_c: 1.0   # Reduced from 4.0 for smoother velocity
+      proc_stddev_wz_c: 0.3   # Reduced from 2.0 for smoother yaw rate
 
     simple_1d_filter_parameters:
       #Simple1DFilter parameters
