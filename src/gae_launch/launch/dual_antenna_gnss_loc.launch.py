@@ -58,7 +58,7 @@ def generate_launch_description():
         parameters=[{'use_sim_time': False}],
     )
 
-    xacro_file = os.path.join(get_package_share_directory("gae_launch"), 'urdf', 'sensors.urdf.xacro')
+    xacro_file = os.path.join(get_package_share_directory("gae_launch"), 'urdf', 'sensors.urdf')
     doc = xacro.process_file(xacro_file)
     robot_description = {'robot_description': doc.toxml()}
     tf_node = Node(

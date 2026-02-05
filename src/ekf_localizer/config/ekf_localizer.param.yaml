@@ -7,7 +7,7 @@
                                        # ↑ false → no bias compensation (more drift); ↓ irrelevant  
       predict_frequency: 50.0         # Hz, how often the EKF prediction step runs  
                                        # ↑ faster → smoother integration but higher CPU; ↓ slower → less smooth  
-      tf_rate: 50.0                   # Hz, how often to broadcast the map→base_link TF  
+      tf_rate: 200.0                   # Hz, how often to broadcast the map→base_link TF  
                                        # ↑ faster → more up-to-date TF; ↓ slower → TF updates less often  
       publish_tf: true                # whether to actually publish the TF  
                                        # true → TF published; false → only topic output, no TF  

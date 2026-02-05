@@ -1,0 +1,22 @@
+/**:
+  ros__parameters:
+    ntrip:
+      host: "3.73.41.96"
+      user_name: "rtktunayker5b4"
+      password: "60e0f87e7cc6"
+      mount_point: "AUTO_WGS84"
+      port: 2101
+      use_nav_sat_fix_init: false
+      nav_sat_fix_topic_name: "/sbg_device1/imu/nav_sat_fix"
+      init_ntrip_location_lat: 41.102580 
+      init_ntrip_location_lon: 29.018032
+
+    serial_port:
+      publish_port_rtcm: false
+      name: "/dev/ttyUSB0"
+      baud_rate: 921600
+
+    rtcm_publisher:
+      publish_rtcm: true
+      rtcm_topic: "/ntrip_client/rtcm"
+      rtcm_frame_id: "rtcm"

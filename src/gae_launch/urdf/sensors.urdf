@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<robot name="vehicle_sensors" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Base link -->
+  <link name="base_link"/>
+
+  <!-- Velodyne -->
+  <link name="velodyne"/>
+  <joint name="base_link_to_velodyne" type="fixed">
+    <parent link="base_link"/>
+    <child link="velodyne"/>
+    <origin xyz="0.8 0.0 1.25" rpy="0 0 0"/>
+  </joint>
+
+  <!-- IMU 1 -->
+  <link name="imu_link_1"/>
+  <joint name="base_link_to_imu_1" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link_1"/>
+    <origin xyz="0.40 -0.12 0.80" rpy="0 0 0"/>
+  </joint>
+
+  <!-- IMU 2 -->
+  <link name="imu_link_2"/>
+  <joint name="base_link_to_imu_2" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link_2"/>
+    <origin xyz="0.40 0.00 0.80" rpy="0 0 0"/>
+  </joint>
+
+  <!-- GNSS -->
+  <link name="gnss_front_right"/>
+  <joint name="base_link_to_gnss_front_right" type="fixed">
+    <parent link="base_link"/>
+    <child link="gnss_front_right"/>
+    <origin xyz="1.35 -0.45 0.30" rpy="0 0 0"/>
+  </joint>
+
+  <link name="gnss_rear_right"/>
+  <joint name="base_link_to_gnss_rear_right" type="fixed">
+    <parent link="base_link"/>
+    <child link="gnss_rear_right"/>
+    <origin xyz="0.00 -0.45 0.30" rpy="0 0 0"/>
+  </joint>
+
+
+  <link name="ouster"/>
+  <joint name="base_link_to_ouster" type="fixed">
+    <parent link="base_link"/>
+    <child link="ouster"/>
+    <origin xyz="0.85 0.0 1.10" rpy="0 0 3.14159"/>
+  </joint>
+
+  <!-- <link name="zed_left_camera_optical_frame"/>
+  <joint name="ouster_to_zed_camera" type="fixed">
+    <parent link="ouster"/>
+    <child link="zed_left_camera_optical_frame"/>
+    <origin xyz="0.043 0.48 0.839" rpy="1.2 0 "/>
+  </joint> -->
+
+  <link name="zed_left_camera_optical_frame"/>
+  <joint name="ouster_to_zed_camera" type="fixed">
+    <parent link="ouster" />
+    <child link="zed_left_camera_optical_frame" />
+    <origin xyz="5.7414646577136176e-18 -5.3540024098441545e-18 -0.1" rpy="-1.5707963267948968 5.741464657713617e-17 1.6057029118347832" />
+  </joint>
+</robot>

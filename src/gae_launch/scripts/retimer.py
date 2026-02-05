@@ -83,20 +83,21 @@ class RetimerNode(Node):
             10
         )
 
+        # saasddassaddsasdsa
         self.subscription_gnss = self.create_subscription(
             NavSatFix,
-            '/sbg_device1/sbg/ros/nav_sat_fix',
+            '/imu/nav_sat_fix',
             self.callback_gnss,
             10
         )
 
         self.subscription_gnss2 = self.create_subscription(
             NavSatFix,
-            '/sbg_device2/sbg/ros/nav_sat_fix',
+            '/sbg_device2/imu/nav_sat_fix',
             self.callback_gnss2,
             10
         )
-
+        # asdadsdsadsasdasdasdasda
         self.publisher_gnss = self.create_publisher(
             NavSatFix,
             '/sbg/ros/nav_sat_fix_corrected',
